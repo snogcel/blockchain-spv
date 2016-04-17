@@ -1,5 +1,5 @@
 var test = require('tap').test
-var bitcoinjs = require('bitcoinjs-lib')
+var bitcoinjs = require('bitcore-lib')
 var memdown = require('memdown')
 var levelup = require('levelup')
 var u = require('bitcoin-util')

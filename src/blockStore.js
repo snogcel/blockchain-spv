@@ -1,6 +1,6 @@
 var EventEmitter = require('events').EventEmitter
 var u = require('bitcoin-util')
-var Block = require('bitcoinjs-lib').Block
+var Block = require('bitcore-lib').BlockHeader
 var inherits = require('inherits')
 var reverse = require('buffer-reverse')
 var struct = require('varstruct')
@@ -10,6 +10,10 @@ var storedBlock = struct([
   { name: 'header', type: struct.Buffer(80) },
   { name: 'next', type: struct.Buffer(32) }
 ])
+
+Block.prototype.getHash = function() {
+  return(this._getHash())
+}
 
 function encodeKey (hash) {
   if (Buffer.isBuffer(hash)) return hash.toString('base64')

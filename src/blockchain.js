@@ -1,7 +1,7 @@
 var EventEmitter = require('events').EventEmitter
 var async = require('async')
 var u = require('bitcoin-util')
-var Block = require('bitcoinjs-lib').Block
+var Block = require('bitcore-lib').BlockHeader
 var to = require('flush-write-stream').obj
 var inherits = require('inherits')
 var BlockStore = require('./blockStore.js')
@@ -20,8 +20,17 @@ function validParameters (params) {
     typeof params.miningHash === 'function'
 }
 
-function blockFromObject (obj) {
-  return Object.assign(new Block(), obj)
+Block.prototype.getId = function() {
+  var id = new Buffer(this._getHash(), 'hex').reverse()
+  return id.toString('hex')
+}
+
+Block.prototype.getHash = function() {
+  return(this._getHash())
+}
+
+function blockFromObject(obj) {
+  return new Block(obj)
 }
 
 var Blockchain = module.exports = function (params, db, opts) {
