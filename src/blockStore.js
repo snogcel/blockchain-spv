@@ -1,15 +1,23 @@
 var EventEmitter = require('events').EventEmitter
 var u = require('bitcoin-util')
 var Block = require('bitcore-lib').BlockHeader
+var DefaultBlock = Block;
 var inherits = require('inherits')
 var reverse = require('buffer-reverse')
 var struct = require('varstruct')
+var varint = require('varuint-bitcoin')
+var u = require('bitcoin-util')
 
 var storedBlock = struct([
   { name: 'height', type: struct.UInt32LE },
-  { name: 'header', type: struct.Buffer(80) },
+  { name: 'header', type: struct.VarBuffer(varint) },
   { name: 'next', type: struct.Buffer(32) }
 ])
+
+Block.prototype.getId = function() {
+  var id = new Buffer(this._getHash(), 'hex').reverse()
+  return id.toString('hex')
+}
 
 Block.prototype.getHash = function() {
   return(this._getHash())
@@ -29,6 +37,7 @@ var BlockStore = module.exports = function (opts) {
     throw new Error('Must specify "db" option')
   }
   this.db = opts.db
+  this.Block = opts.Block || DefaultBlock
 
   this.keyEncoding = 'utf8'
   this.valueEncoding = 'binary'
@@ -87,14 +96,14 @@ BlockStore.prototype.get = function (hash, cb) {
   } catch (err) {
     return cb(err)
   }
-
   this.db.get(key, {
     keyEncoding: this.keyEncoding,
     valueEncoding: this.valueEncoding
   }, (err, data) => {
     if (err) return cb(err)
     var block = storedBlock.decode(data)
-    block.header = Block.fromBuffer(block.header)
+    block.header = this.Block.fromBuffer(block.header)
+    if (block.next.equals(u.nullHash)) block.next = null
     cb(null, block)
   })
 }

@@ -1,8 +1,10 @@
 var test = require('tape')
 var bitcoinjs = require('bitcore-lib')
+var Block = require('bitcore-lib').BlockHeader;
 var u = require('bitcoin-util')
 var levelup = require('levelup')
 var memdown = require('memdown')
+var assign = require('object-assign')
 var reverse = require('buffer-reverse')
 var params = require('webcoin-bitcoin').blockchain
 var Blockchain = require('../lib/blockchain.js')
@@ -19,9 +21,17 @@ function endStore (store, t) {
   })
 }
 
-function blockFromObject (obj) {
-  var block = new bitcoinjs.BlockHeader(obj)
-  return block
+Block.prototype.getId = function () {
+  var id = new Buffer(this._getHash(), 'hex').reverse();
+  return id.toString('hex');
+};
+
+Block.prototype.getHash = function () {
+  return this._getHash();
+};
+
+function blockFromObject(obj) {
+  return new Block(obj);
 }
 
 var maxTarget = new Buffer('7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 'hex')
@@ -62,9 +72,7 @@ var defaultTestParams = {
 }
 
 function createTestParams (opts) {
-  var testParams = Object.assign({}, params)
-  testParams = Object.assign(testParams, defaultTestParams)
-  return Object.assign(testParams, opts)
+  return assign({}, params, defaultTestParams, opts)
 }
 
 test('create blockchain instance', function (t) {
@@ -95,12 +103,44 @@ test('blockchain paths', function (t) {
 
   var headers = []
   t.test('headers add to blockchain', function (t) {
+    t.plan(53)
     var block = genesis
     for (var i = 0; i < 10; i++) {
       block = createBlock(block)
-      headers.push(block)
+      headers.push(block);
+      (function (block) {
+        chain.on('block:' + block.getHash().toString('base64'), function (block2) {
+          t.equal(block, block2.header)
+        })
+      })(block)
     }
-    chain.addHeaders(headers, t.end)
+
+    var blockIndex = 0
+    chain.on('block', function (block) {
+      t.equal(block.height, blockIndex + 1)
+      t.equal(block.header, headers[blockIndex++])
+    })
+
+    var tipIndex = 0
+    chain.on('tip', function (block) {
+      t.equal(block.height, tipIndex + 1)
+      t.equal(block.header, headers[tipIndex++])
+    })
+
+    chain.once('headers', function (headers2) {
+      t.equal(headers2, headers)
+    })
+    chain.addHeaders(headers, function (err) {
+      t.pass('addHeaders cb called')
+      t.error(err)
+    })
+  })
+
+  t.test('remove listeners', function (t) {
+    chain.removeAllListeners('block')
+    chain.removeAllListeners('tip')
+    chain.removeAllListeners('blocks')
+    t.end()
   })
 
   t.test('simple path with no fork', function (t) {
@@ -144,26 +184,39 @@ test('blockchain paths', function (t) {
   var headers2 = []
   t.test('fork headers add to blockchain', function (t) {
     var block = headers[4]
-    for (var i = 0; i < 10; i++) {
+    for (var i = 0; i < 6; i++) {
       block = createBlock(block, 0xffffff)
       headers2.push(block)
     }
     chain.on('reorg', function (e) {
       t.ok(e, 'got reorg event')
-      t.equal(e.remove.length, 5, 'removed blocks is correct length')
-      t.equal(e.remove[0].height, 10)
-      t.equal(e.remove[0].header.getId(), headers[9].getId())
-      t.equal(e.remove[1].height, 9)
-      t.equal(e.remove[1].header.getId(), headers[8].getId())
-      t.equal(e.remove[2].height, 8)
-      t.equal(e.remove[2].header.getId(), headers[7].getId())
-      t.equal(e.remove[3].height, 7)
-      t.equal(e.remove[3].header.getId(), headers[6].getId())
-      t.equal(e.remove[4].height, 6)
-      t.equal(e.remove[4].header.getId(), headers[5].getId())
+      t.equal(e.path.remove.length, 5, 'removed blocks is correct length')
+      t.equal(e.path.remove[0].height, 10)
+      t.equal(e.path.remove[0].header.getId(), headers[9].getId())
+      t.equal(e.path.remove[1].height, 9)
+      t.equal(e.path.remove[1].header.getId(), headers[8].getId())
+      t.equal(e.path.remove[2].height, 8)
+      t.equal(e.path.remove[2].header.getId(), headers[7].getId())
+      t.equal(e.path.remove[3].height, 7)
+      t.equal(e.path.remove[3].header.getId(), headers[6].getId())
+      t.equal(e.path.remove[4].height, 6)
+      t.equal(e.path.remove[4].header.getId(), headers[5].getId())
+      t.equal(e.path.add.length, 6, 'added blocks is correct length')
+      t.equal(e.path.add[0].height, 6)
+      t.equal(e.path.add[0].header.getId(), headers2[0].getId())
+      t.equal(e.path.add[1].height, 7)
+      t.equal(e.path.add[1].header.getId(), headers2[1].getId())
+      t.equal(e.path.add[2].height, 8)
+      t.equal(e.path.add[2].header.getId(), headers2[2].getId())
+      t.equal(e.path.add[3].height, 9)
+      t.equal(e.path.add[3].header.getId(), headers2[3].getId())
+      t.equal(e.path.add[4].height, 10)
+      t.equal(e.path.add[4].header.getId(), headers2[4].getId())
+      t.equal(e.path.add[5].height, 11)
+      t.equal(e.path.add[5].header.getId(), headers2[5].getId())
       t.ok(e.tip)
-      t.equal(e.tip.height, 15)
-      t.equal(e.tip.header.getId(), headers2[9].getId())
+      t.equal(e.tip.height, 11)
+      t.equal(e.tip.header.getId(), headers2[5].getId())
       t.end()
     })
     chain.addHeaders(headers2, t.error)
@@ -171,7 +224,7 @@ test('blockchain paths', function (t) {
 
   t.test('path with fork', function (t) {
     var from = { height: 10, header: headers[9] }
-    var to = { height: 15, header: headers2[9] }
+    var to = { height: 11, header: headers2[5] }
     chain.getPath(from, to, function (err, path) {
       if (err) return t.end(err)
       t.ok(path)
@@ -183,17 +236,17 @@ test('blockchain paths', function (t) {
       t.equal(path.remove[0].header.getId(), from.header.getId())
       t.equal(path.remove[4].height, 6)
       t.equal(path.remove[4].header.getId(), headers[5].getId())
-      t.equal(path.add.length, 10)
+      t.equal(path.add.length, 6)
       t.equal(path.add[0].height, 6)
       t.equal(path.add[0].header.getId(), headers2[0].getId())
-      t.equal(path.add[9].height, 15)
-      t.equal(path.add[9].header.getId(), headers2[9].getId())
+      t.equal(path.add[5].height, 11)
+      t.equal(path.add[5].header.getId(), headers2[5].getId())
       t.end()
     })
   })
 
   t.test('backwards path with fork', function (t) {
-    var from = { height: 15, header: headers2[9] }
+    var from = { height: 11, header: headers2[5] }
     var to = { height: 10, header: headers[9] }
     chain.getPath(from, to, function (err, path) {
       if (err) return t.end(err)
@@ -201,11 +254,11 @@ test('blockchain paths', function (t) {
       t.ok(path.add)
       t.ok(path.remove)
       t.equal(path.fork.header.getId(), headers[4].getId())
-      t.equal(path.remove.length, 10)
-      t.equal(path.remove[0].height, 15)
+      t.equal(path.remove.length, 6)
+      t.equal(path.remove[0].height, 11)
       t.equal(path.remove[0].header.getId(), from.header.getId())
-      t.equal(path.remove[9].height, 6)
-      t.equal(path.remove[9].header.getId(), headers2[0].getId())
+      t.equal(path.remove[5].height, 6)
+      t.equal(path.remove[5].header.getId(), headers2[0].getId())
       t.equal(path.add.length, 5)
       t.equal(path.add[0].height, 6)
       t.equal(path.add[0].header.getId(), headers[5].getId())
@@ -278,10 +331,10 @@ test('blockchain verification', function (t) {
   })
 
   t.test('error on header with invalid difficulty change', function (t) {
-    var block = createBlock(headers[8], 0, 0x1f70ffff)
+    var block = createBlock(headers[8], 0, 0x207fffff)
     chain.addHeaders([ block ], function (err) {
       t.ok(err)
-      t.equal(err.message, 'Bits in block (1f70ffff) different than expected (201fffff)')
+      t.equal(err.message, 'Bits in block (207fffff) different than expected (201fffff)')
       t.end()
     })
   })

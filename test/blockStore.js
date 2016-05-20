@@ -1,9 +1,15 @@
-var test = require('tap').test
+var test = require('tape')
 var bitcoinjs = require('bitcore-lib')
+var Block = require('bitcore-lib').BlockHeader
 var memdown = require('memdown')
 var levelup = require('levelup')
 var u = require('bitcoin-util')
 var BlockStore = require('../lib/blockStore.js')
+
+Block.prototype.getId = function() {
+  var id = new Buffer(this._getHash(), 'hex').reverse()
+  return id.toString('hex')
+}
 
 // TODO: get/setTip tests
 // TODO: tests for put with { tip: true }
@@ -13,7 +19,7 @@ function createBlock () {
     version: 1,
     prevHash: u.toHash('0000000000000000000000000000000000000000000000000000000000000000'),
     merkleRoot: u.toHash('4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b'),
-    timestamp: Math.floor(Date.now() / 1000),
+    time: Math.floor(Date.now() / 1000),
     bits: 0x1d00ffff,
     nonce: Math.floor(Math.random() * 0xffffff)
   })
@@ -21,9 +27,11 @@ function createBlock () {
 }
 
 function blockFromObject (obj) {
-  var block = new bitcoinjs.Block()
-  for (var k in obj) block[k] = obj[k]
+  /*
+  var block = new bitcoinjs.BlockHeader(obj)
   return block
+  */
+  return new Block(obj);
 }
 
 test('open blockstore', function (t) {
@@ -46,20 +54,36 @@ test('blockstore put', function (t) {
   })
   t.test('put invalid blocks', function (t) {
     t.test('empty', function (t) {
-      bs.put({}, t.end)
+      bs.put({}, function (err) {
+        t.ok(err, 'got error')
+        t.same(err.message, 'Must specify height', 'correct error message')
+        t.end()
+      })
     })
     t.test('no header', function (t) {
-      bs.put({ height: 123 }, t.end)
+      bs.put({ height: 123 }, function (err) {
+        t.ok(err, 'got error')
+        t.same(err.message, 'Must specify header', 'correct error message')
+        t.end()
+      })
     })
     t.test('no height', function (t) {
-      bs.put({ header: block.header }, t.end)
+      bs.put({ header: block.header }, function (err) {
+        t.ok(err, 'got error')
+        t.same(err.message, 'Must specify height', 'correct error message')
+        t.end()
+      })
     })
     t.end()
   })
   t.test('put after close', function (t) {
     bs.close(function (err) {
       t.error(err)
-      bs.put(block, t.end)
+      bs.put(block, function (err) {
+        t.ok(err, 'got error')
+        t.same(err.message, 'Database is not open', 'correct error message')
+        t.end()
+      })
     })
   })
   t.end()
