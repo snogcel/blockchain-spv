@@ -1,8 +1,8 @@
 var EventEmitter = require('events').EventEmitter
 var async = require('async')
 var u = require('bitcoin-util')
-var Block = require('bitcore-lib-dash').BlockHeader
-var DefaultBlock = Block;
+// var DefaultBlock = require('bitcore-lib-dash').BlockHeader
+var DefaultBlock = require('bitcore-lib').BlockHeader
 var from = require('from2').obj
 var to = require('flush-write-stream').obj
 var inherits = require('inherits')
@@ -20,15 +20,6 @@ function validParameters (params) {
     typeof params.miningHash === 'function'
 }
 
-Block.prototype.getId = function() {
-  var id = new Buffer(this._getHash(), 'hex').reverse()
-  return id.toString('hex')
-}
-
-Block.prototype.getHash = function() {
-  return(this._getHash())
-}
-
 var Blockchain = module.exports = function (params, db, opts) {
   if (!params || !validParameters(params)) {
     throw new Error('Invalid network parameters')
@@ -37,7 +28,7 @@ var Blockchain = module.exports = function (params, db, opts) {
   this.params = params
   opts = opts || {}
 
-  // var Block = params.Block || DefaultBlock
+  var Block = params.Block || DefaultBlock
 
   function blockFromObject(obj) {
     return new Block(obj)

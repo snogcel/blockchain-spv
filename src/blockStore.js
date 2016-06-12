@@ -1,7 +1,7 @@
 var EventEmitter = require('events').EventEmitter
 var u = require('bitcoin-util')
-var Block = require('bitcore-lib-dash').BlockHeader
-var DefaultBlock = Block;
+// var DefaultBlock = require('bitcore-lib-dash').BlockHeader
+var DefaultBlock = require('bitcore-lib').BlockHeader
 var inherits = require('inherits')
 var reverse = require('buffer-reverse')
 var struct = require('varstruct')
@@ -13,15 +13,6 @@ var storedBlock = struct([
   { name: 'header', type: struct.VarBuffer(varint) },
   { name: 'next', type: struct.Buffer(32) }
 ])
-
-Block.prototype.getId = function() {
-  var id = new Buffer(this._getHash(), 'hex').reverse()
-  return id.toString('hex')
-}
-
-Block.prototype.getHash = function() {
-  return(this._getHash())
-}
 
 function encodeKey (hash) {
   if (Buffer.isBuffer(hash)) return hash.toString('base64')
