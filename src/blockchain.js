@@ -35,20 +35,20 @@ var Blockchain = module.exports = function (params, db, opts) {
     return new Block(obj)
   }
 
-  // function blockFromObject (obj) {
-  //  return assign(new Block(), obj)
-  // }
-
-  var genesisHeader = blockFromObject(params.genesisHeader)
+  var genesisHeader = new Block.fromObject({
+    version: params.genesisHeader.version,
+    prevHash: params.genesisHeader.prevHash,
+    merkleRoot: params.genesisHeader.merkleRoot,
+    time: params.genesisHeader.time,
+    bits: params.genesisHeader.bits,
+    nonce: params.genesisHeader.nonce
+  })
 
   this.genesis = this.tip = {
-    height: 0,
+    height: params.genesisHeader.height,
     hash: genesisHeader.getHash(),
     header: genesisHeader
   }
-
-  // console.log("- genesis headers -");
-  // console.log(genesisHeader.toObject());
 
   if (params.checkpoints && !opts.ignoreCheckpoints) {
     var lastCheckpoint = params.checkpoints[params.checkpoints.length - 1]
