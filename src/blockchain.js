@@ -35,14 +35,14 @@ var Blockchain = module.exports = function (params, db, opts) {
     return new Block(obj)
   }
 
-  var genesisHeader = new Block.fromObject({
+  var genesisHeader = new DefaultBlock.fromObject({
     version: params.genesisHeader.version,
     prevHash: params.genesisHeader.prevHash,
     merkleRoot: params.genesisHeader.merkleRoot,
     time: params.genesisHeader.time,
     bits: params.genesisHeader.bits,
     nonce: params.genesisHeader.nonce
-  })
+  });
 
   this.genesis = this.tip = {
     height: params.genesisHeader.height,
@@ -305,8 +305,6 @@ Blockchain.prototype.addHeaders = function (headers, cb) {
   }
 
   var header = new DefaultBlock(headers[0]).toObject();
-  // console.log("Seeking: " + header);
-  // console.log("Seeking: " + header.prevHash);
 
   // TODO: store all orphan tips
   this.getBlock(headers[0].prevHash, (err, start) => {
@@ -390,6 +388,10 @@ Blockchain.prototype._addHeader = function (prev, header, cb) {
           'Target: ' + u.expandTarget(header.bits).toString('hex') + ')'), block)
       }
       // TODO: other checks (timestamp, version)
+
+      // TODO: implement target recalculation verification
+
+      /*
       if (retarget) {
         return this.params.calculateTarget(block, this, (err, target) => {
           if (err) return cb(err, block)
@@ -404,6 +406,8 @@ Blockchain.prototype._addHeader = function (prev, header, cb) {
           put()
         })
       }
+      */
+
       put()
     })
   })
