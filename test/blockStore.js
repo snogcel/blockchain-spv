@@ -122,7 +122,7 @@ test('blockstore get', function (t) {
       })
     })
     t.test('get using buffer hash', function (t) {
-      bs.get(block1.header.getHash(), function (err, block2) {
+      bs.get(block1.header._getHash(), function (err, block2) {
         t.error(err)
         // compare blocks
         t.equal(block1.height, block2.height)
@@ -169,14 +169,14 @@ test('chain linking', function (t) {
   var block1 = createBlock()
   var block2 = createBlock()
   block2.height = block2.height + 1
-  block2.header.prevHash = block1.header.getHash()
+  block2.header.prevHash = block1.header._getHash()
   bs.put(block1, function (err) {
     t.error(err)
     bs.put(block2, { tip: true, prev: block1 }, function (err) {
       t.error(err)
-      bs.get(block1.header.getHash(), function (err, block) {
+      bs.get(block1.header._getHash(), function (err, block) {
         t.error(err)
-        t.deepEqual(block.next, block2.header.getHash(), 'first block now points to second block')
+        t.deepEqual(block.next, block2.header._getHash(), 'first block now points to second block')
         t.end()
       })
     })

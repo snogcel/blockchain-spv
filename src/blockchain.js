@@ -46,7 +46,7 @@ var Blockchain = module.exports = function (params, db, opts) {
 
   this.genesis = this.tip = {
     height: params.genesisHeader.height,
-    hash: genesisHeader.getHash(),
+    hash: genesisHeader._getHash(),
     header: genesisHeader
   }
 
@@ -56,7 +56,7 @@ var Blockchain = module.exports = function (params, db, opts) {
       height: lastCheckpoint.height,
       header: blockFromObject(lastCheckpoint.header)
     }
-    this.checkpoint.hash = this.checkpoint.header.getHash()
+    this.checkpoint.hash = this.checkpoint.header._getHash()
     this.tip = this.checkpoint
   }
 
@@ -371,7 +371,7 @@ Blockchain.prototype._addHeader = function (prev, header, cb) {
   var height = prev.height + 1
   var block = {
     height: height,
-    hash: header.getHash(),
+    hash: header._getHash(),
     header: header
   }
   // if prev already has a "next" pointer, then this is a fork, so we
@@ -448,7 +448,7 @@ Blockchain.prototype.maxTarget = function () {
 }
 
 Blockchain.prototype.estimatedChainHeight = function () {
-  var elapsed = (Date.now() / 1000) - this.tip.header.timestamp
+  var elapsed = (Date.now() / 1000) - this.tip.header.time
   var blocks = Math.round(elapsed / this.params.targetSpacing)
   return this.tip.height + blocks
 }

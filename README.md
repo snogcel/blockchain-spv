@@ -73,9 +73,9 @@ Gets a block in the chain with height `height`. The callback is called with `cb(
 Note that this requires the blockchain to be traversed (from the tip or genesis block, whichever is closest), so it runs in `O(N/2)` time.
 
 ----
-#### `chain.getBlockAtTime(timestamp, callback)`
+#### `chain.getBlockAtTime(time, callback)`
 
-Gets the highest block with a timestamp that comes before or on `timestamp`. `timestamp` should be in [Unix time](https://en.wikipedia.org/wiki/Unix_time) measured in seconds (not milliseconds as returned by `Date.now()`). The callback is called with `cb(err, block)`.
+Gets the highest block with a time that comes before or on `time`. `time` should be in [Unix time](https://en.wikipedia.org/wiki/Unix_time) measured in seconds (not milliseconds as returned by `Date.now()`). The callback is called with `cb(err, block)`.
 
 Note that this requires the blockchain to be traversed (from the tip or genesis block, whichever is closest), so it runs in `O(N)` time.
 
@@ -151,7 +151,7 @@ Parameters specify blockchain rules and constants for different cryptocurrencies
     version: Number,
     prevHash: Buffer,
     merkleRoot: Buffer,
-    timestamp: Number,
+    time: Number,
     bits: Number,
     nonce: Number
   },
@@ -183,7 +183,7 @@ Parameters specify blockchain rules and constants for different cryptocurrencies
         version: Number,
         prevHash: Buffer,
         merkleRoot: Buffer,
-        timestamp: Number,
+        time: Number,
         bits: Number,
         nonce: Number
       }
