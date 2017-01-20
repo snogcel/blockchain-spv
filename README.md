@@ -20,6 +20,11 @@ var db = levelup('bitcoin.chain', { db: require('memdown') })
 // create blockchain
 var Blockchain = require('blockchain-spv')
 var chain = new Blockchain(params, db)
+
+// wait for the blockchain to be ready
+chain.on('ready', function () {
+  // use the blockchain
+}
 ```
 
 `Blockchain` stores and verifies block headers, and does SPV (lite client) verification. It is compatible with Bitcoin and Bitcoin-derived blockchains.
@@ -33,6 +38,8 @@ Creates an SPV `Blockchain` which stores and verifies block headers.
 
 `db` should be a [`LevelUp`](https://github.com/Level/levelup) instance where block data will be stored. The db should not be shared with another Blockchain (if you need to, use [`level-sublevel`](https://github.com/dominictarr/level-sublevel) to create a sub-section of your db).
 
+Make sure to wait for the `ready` event before using the blockchain.
+
 ----
 #### `chain.addHeaders(headers, callback)`
 
@@ -42,6 +49,16 @@ Adds block headers to the chain. `headers` should be an array of contiguous, asc
 #### `chain.createWriteStream()`
 
 Returns a writable stream that takes in arrays of block headers and adds them to the chain. This is essentially just a stream wrapper for `chain.addHeaders()`, making it easier to get headers from a `HeaderStream` (from the [`bitcoin-net`](https://github.com/mappum/bitcoin-net) module).
+
+----
+#### `chain.createReadStream([opts])`
+
+Returns a readable stream that outputs blocks from the blockchain (in order). The stream will stay open even when it reaches the chain tip, and will output new blocks as they are received (this means you don't have to think about whether the chain is done syncing or not).
+
+If a reorg happens (blocks that have been emitted are now on an invalid fork), the stream will emit the now-invalid blocks again in descending order (so that each can be un-processed). Each block has a boolean `add` property which is `false` if it is being removed from the chain. **NOTE:** It is important to always check the value of `block.add` and un-process blocks when they are invalidated.
+
+`opts` may contain the following options:
+- `from` *Buffer* (default: `null`) - start the stream at the block with this hash (exclusive). If `from` is `null`, the stream will start at the genesis block.
 
 ----
 #### `chain.getBlock(hash, callback)`

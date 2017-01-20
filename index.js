@@ -1,1 +1,1 @@
-module.exports = require('./src/blockchain.js')
+module.exports = require('./lib/blockchain.js')

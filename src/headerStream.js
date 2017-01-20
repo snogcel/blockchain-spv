@@ -13,8 +13,7 @@ function HeaderStream (chain, opts) {
   opts = opts || {}
   this.chain = chain
   this.start = this.cursor = opts.from || chain.genesis.hash
-  this.stopHash = opts.stopHash
-  this.stopHeight = opts.stopHeight
+  this.sync = opts.sync != null ? opts.sync : true
 
   this.paused = false
   this.ended = false
@@ -37,21 +36,18 @@ HeaderStream.prototype._next = function () {
 
   // we reached end of chain, wait for new tip
   if (!this.cursor) {
-    this.chain.once('tip', (block) => {
+    var getPath = (block) => {
       this.chain.getPath(this.lastBlock, block, (err, path) => {
         if (err) return this.emit('error', err)
-          // reorg handling (remove blocks to get to new fork)
-        for (let block of path.remove) {
-          block.add = false
-          this._push(block)
-        }
-        for (let block of path.add) {
-          block.add = true
-          this._push(block)
-        }
+        // reorg handling (remove blocks to get to new fork)
+        this._pushPath(path)
         this.paused = false
         setImmediate(this._next.bind(this))
       })
+    }
+    this.chain.once('tip', (block) => {
+      if (!this.sync) return getPath(block)
+      this.chain.once('commit', () => getPath(block))
     })
     return
   }
@@ -60,6 +56,7 @@ HeaderStream.prototype._next = function () {
   this.chain.getBlock(this.cursor, (err, block) => {
     if (this.ended) return
     if (err) return this.emit('error', err)
+
     if (!block) {
       // if current "next" block is not found
       if (this.cursor.equals(this.start)) {
@@ -74,26 +71,58 @@ HeaderStream.prototype._next = function () {
       return
     }
 
+    // when starting, ensure we are on the best chain
+    if (this.first) {
+      let done = () => {
+        this.paused = false
+        this.first = false
+        this.emit('init')
+        setImmediate(this._next.bind(this))
+      }
+      this.chain.getBlockAtHeight(block.height, (err, bestChainBlock) => {
+        if (err) return this.emit('error', err)
+        if (block.header.getHash().equals(bestChainBlock.header.getHash())) {
+          // we are already on the best chain, continue like normal
+          this.cursor = block.next
+          this.lastHash = block.header.getHash()
+          this.lastBlock = block
+          return done()
+        }
+        // we need to add/remove some blocks to get to the best chain
+        this.chain.getPath(block, bestChainBlock, (err, path) => {
+          if (err) return this.emit('error', err)
+          this._pushPath(path)
+          done()
+        })
+      })
+      return
+    }
+
+    // we have the cursor block, so push it and continue
     this.paused = false
     block.add = true
     var res = this._push(block)
-    if ((this.stopHash && this.stopHash.equals(this.lastHash)) ||
-    (this.stopHeight && this.stopHeight === block.height)) {
-      return this.push(null)
-    }
     if (res) this._next()
   })
 }
 
 HeaderStream.prototype._push = function (block) {
+  if (this.ended) return
   this.cursor = block.next
   this.lastHash = block.header.getHash()
   this.lastBlock = block
-  if (this.first) {
-    this.first = false
-    return true
-  }
   return this.push(block)
+}
+
+HeaderStream.prototype._pushPath = function (path) {
+  for (let block of path.remove) {
+    block.add = false
+    this._push(block)
+  }
+  for (let block of path.add) {
+    block.add = true
+    this._push(block)
+  }
 }
 
 HeaderStream.prototype.end = function () {

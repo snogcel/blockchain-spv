@@ -21,9 +21,9 @@ function validParameters (params) {
 }
 
 var Blockchain = module.exports = function (params, db, opts) {
-
+  if (!(this instanceof Blockchain)) return new Blockchain(params, db, opts)
   if (!params || !validParameters(params)) {
-    throw new Error('Invalid network parameters')
+    throw new Error('Invalid blockchain parameters')
   }
   if (!db) throw new Error('Must specify db')
   this.params = params
@@ -60,17 +60,18 @@ var Blockchain = module.exports = function (params, db, opts) {
     this.tip = this.checkpoint
   }
 
-  this.initialized = false
+  this.ready = false
   this.closed = false
   this.adding = false
 
-  this.store = new BlockStore({ db: db, Block: Block })
+  var indexInterval = params.interval
+  this.store = new BlockStore({ db, Block, indexInterval })
   this._initialize()
 }
 inherits(Blockchain, EventEmitter)
 
 Blockchain.prototype._initialize = function () {
-  if (this.initialized) {
+  if (this.ready) {
     return this._error(new Error('Already initialized'))
   }
 
@@ -79,7 +80,7 @@ Blockchain.prototype._initialize = function () {
     this.store.getTip((err, tip) => {
       if (err && err.name !== 'NotFoundError') return this._error(err)
       if (tip) this.tip = tip
-      this.initialized = true
+      this.ready = true
       this.emit('ready')
     })
   })
@@ -87,10 +88,11 @@ Blockchain.prototype._initialize = function () {
 
 Blockchain.prototype._initStore = function (cb) {
   var putIfNotFound = (block) => (cb) => {
-    this.store.get(block.hash, (err) => {
+    this.store.get(block.hash, (err, found) => {
       if (err && !err.notFound) return cb(err)
+      if (found) return cb() // skip if already stored
       if (this.closed || this.store.isClosed()) return cb(storeClosedError)
-      this.store.put(block, cb)
+      this.store.put(block, { commit: true, best: true }, cb)
     })
   }
 
@@ -100,7 +102,7 @@ Blockchain.prototype._initStore = function (cb) {
 }
 
 Blockchain.prototype.onceReady = function (cb) {
-  if (this.initialized) return cb()
+  if (this.ready) return cb()
   this.once('ready', cb)
 }
 
@@ -159,7 +161,6 @@ Blockchain.prototype.getPath = function (from, to, cb) {
     addTraversedBlock(block)
     this.getBlock(block.header.prevHash, traverseDown)
   }
-  traverseDown(null, top)
 
   // traverse down from both blocks until we find one block that is the same
   var traverseToFork = (left, right) => {
@@ -184,6 +185,7 @@ Blockchain.prototype.getPath = function (from, to, cb) {
       })
     })
   }
+  traverseDown(null, top)
 }
 
 Blockchain.prototype.getPathToTip = function (from, cb) {
@@ -194,11 +196,7 @@ Blockchain.prototype.getBlock = function (hash, cb) {
   if (!Buffer.isBuffer(hash)) {
     return cb(new Error('"hash" must be a Buffer'))
   }
-  if (!this.initialized) {
-    this.once('ready', () => this.getBlock(hash, cb))
-    return
-  }
-  this.store.get(hash, cb)
+  this.onceReady(() => this.store.get(hash, cb))
 }
 
 Blockchain.prototype.getBlockAtTime = function (time, cb) {
@@ -214,19 +212,23 @@ Blockchain.prototype.getBlockAtTime = function (time, cb) {
 }
 
 Blockchain.prototype.getBlockAtHeight = function (height, cb) {
-  if (height > this.tip.height) return cb(new Error('height is higher than tip'))
+  if (height > this.tip.height) {
+    let err = new Error('height is higher than tip')
+    err.notFound = true
+    return cb(err)
+  }
   if (height < 0) return cb(new Error('height must be >= 0'))
 
-  var down = height > this.tip.height / 2
-
-  var traverse = (err, block) => {
+  this.store.getIndex(height, (err, indexHash) => {
     if (err) return cb(err)
-    if (block.height === height) return cb(null, block)
-    // TODO: remove traversal using block.next by indexing by height every so
-    // often and traversing down using header.prevHash
-    this.getBlock(down ? block.header.prevHash : block.next, traverse)
-  }
-  this.getBlock(down ? this.tip.hash : this.genesis.hash, traverse)
+
+    var traverse = (err, block) => {
+      if (err) return cb(err)
+      if (block.height === height) return cb(null, block)
+      this.getBlock(block.next, traverse)
+    }
+    this.getBlock(indexHash, traverse)
+  })
 }
 
 Blockchain.prototype.getLocator = function (from, cb) {
@@ -250,15 +252,12 @@ Blockchain.prototype.getLocator = function (from, cb) {
 }
 
 Blockchain.prototype._error = function (err) {
+  if (!err) return
   this.emit('error', err)
 }
 
 Blockchain.prototype._put = function (hash, opts, cb) {
-  if (!this.initialized) {
-    this.once('ready', () => this._put(hash, opts, cb))
-    return
-  }
-  this.store.put(hash, opts, cb)
+  this.onceReady(() => this.store.put(hash, opts, cb))
 }
 
 Blockchain.prototype.createWriteStream = function () {
@@ -301,14 +300,17 @@ Blockchain.prototype.addHeaders = function (headers, cb) {
     if (err) this.emit('headerError', err)
     else this.emit('headers', headers)
     this.adding = false
-    cb(err, last)
+    this.store.commit((err2) => {
+      if (err || err2) return cb(err || err2)
+      this.emit('commit', headers)
+      cb(null, last)
+    })
   }
 
-  var header = new DefaultBlock(headers[0]).toObject();
-
-  // TODO: store all orphan tips
   this.getBlock(headers[0].prevHash, (err, start) => {
-    if (err && err.name === 'NotFoundError') return done(new Error('Block does not connect to chain'))
+    if (err && err.notFound) {
+      return done(new Error('Block does not connect to chain'))
+    }
     if (err) return done(err)
     start.hash = start.header.getHash()
 
@@ -317,16 +319,12 @@ Blockchain.prototype.addHeaders = function (headers, cb) {
 
       // TODO: add even if it doesn't pass the current tip
       // (makes us store orphan forks, and lets us handle reorgs > 2000 blocks)
+
       if (last.height > previousTip.height) {
         this.getPath(previousTip, last, (err, path) => {
           if (err) return done(err, last)
           if (path.remove.length > 0) {
-            var first = { height: start.height + 1, header: headers[0] }
-            this.store.put(first, { best: true, prev: start }, (err) => {
-              if (err) return done(err)
-              this.emit('reorg', { path, tip: last })
-              done(null, last)
-            })
+            this._reorg(path, done)
             return
           }
           done(null, last)
@@ -339,26 +337,50 @@ Blockchain.prototype.addHeaders = function (headers, cb) {
   })
 }
 
-Blockchain.prototype._addHeader = function (prev, header, cb) {
-  if (typeof header === 'function') {
-    cb = header
-    header = null
-  }
-  if (header == null) {
-    header = prev
-    prev = this.tip
+Blockchain.prototype._reorg = function (path, cb) {
+  // wait for db to finish committing if neccessary
+  if (this.store.committing) {
+    this.store.once('commit', () => this._reorg(path, cb))
+    return
   }
 
+  // create new db transaction if there isn't one
+  if (!this.store.tx) this.store.createTx(false)
+
+  // iterate through the new best fork, and put the blocks again
+  // (this updates the links, height index, and tip)
+  var put = (prev, i = 0) => {
+    if (i === path.add.length) {
+      this.emit('reorg', { path, tip: prev })
+      return cb(null, prev)
+    }
+    var block = path.add[i]
+    this.store.put(block, {
+      best: true,
+      tip: i === path.add.length - 1,
+      prev
+    }, (err) => {
+      if (err) return cb(err)
+      put(block, i + 1)
+    })
+  }
+  put(path.fork)
+}
+
+Blockchain.prototype._addHeader = function (prev, header, cb) {
   var height = prev.height + 1
   var block = {
     height: height,
     hash: header.getHash(),
     header: header
   }
+  // if prev already has a "next" pointer, then this is a fork, so we
+  // won't change it to point to this block (yet)
+  var link = !prev.next
 
   var put = () => {
     var tip = height > this.tip.height
-    this._put({ header: header, height: height }, { tip: tip, prev: prev }, (err) => {
+    this._put({ header, height }, { tip, prev, link }, (err) => {
       if (err) return cb(err)
       this.emit('block', block)
       this.emit(`block:${block.hash.toString('base64')}`, block)
@@ -423,4 +445,10 @@ Blockchain.prototype.validProof = function (header, cb) {
 
 Blockchain.prototype.maxTarget = function () {
   return u.expandTarget(this.params.genesisHeader.bits)
+}
+
+Blockchain.prototype.estimatedChainHeight = function () {
+  var elapsed = (Date.now() / 1000) - this.tip.header.timestamp
+  var blocks = Math.round(elapsed / this.params.targetSpacing)
+  return this.tip.height + blocks
 }
