@@ -1,7 +1,8 @@
 var EventEmitter = require('events').EventEmitter
 var async = require('async')
 var u = require('bitcoin-util')
-var DefaultBlock = require('bitcoinjs-lib').Block
+var DefaultBlock = require('bitcore-lib-dash').BlockHeader
+// var DefaultBlock = require('bitcore-lib').BlockHeader
 var from = require('from2').obj
 var to = require('flush-write-stream').obj
 var inherits = require('inherits')
@@ -30,13 +31,21 @@ var Blockchain = module.exports = function (params, db, opts) {
 
   var Block = params.Block || DefaultBlock
 
-  function blockFromObject (obj) {
-    return assign(new Block(), obj)
+  function blockFromObject(obj) {
+    return new Block(obj)
   }
 
-  var genesisHeader = blockFromObject(params.genesisHeader)
+  var genesisHeader = new DefaultBlock.fromObject({
+    version: params.genesisHeader.version,
+    prevHash: params.genesisHeader.prevHash,
+    merkleRoot: params.genesisHeader.merkleRoot,
+    time: params.genesisHeader.time,
+    bits: params.genesisHeader.bits,
+    nonce: params.genesisHeader.nonce
+  });
+
   this.genesis = this.tip = {
-    height: 0,
+    height: params.genesisHeader.height,
     hash: genesisHeader.getHash(),
     header: genesisHeader
   }
@@ -194,8 +203,8 @@ Blockchain.prototype.getBlockAtTime = function (time, cb) {
   var output = this.tip
   var traverse = (err, block) => {
     if (err) return cb(err)
-    if (block.header.timestamp <= time) return cb(null, output)
-    if (block.header.timestamp >= time) output = block
+    if (block.header.time <= time) return cb(null, output)
+    if (block.header.time >= time) output = block
     if (block.height === 0) return cb(null, output)
     this.getBlock(block.header.prevHash, traverse)
   }
@@ -389,7 +398,9 @@ Blockchain.prototype._addHeader = function (prev, header, cb) {
   this.params.shouldRetarget(block, (err, retarget) => {
     if (err) return cb(err)
     if (!retarget && header.bits !== prev.header.bits) {
-      return cb(new Error('Unexpected difficulty change at height ' + height), block)
+    // TODO: validate
+    // console.log("Unexpected difficulty change at height" + height);
+    // return cb(new Error('Unexpected difficulty change at height ' + height), block)
     }
     this.validProof(header, (err, validProof) => {
       if (err) return cb(err)
@@ -399,18 +410,26 @@ Blockchain.prototype._addHeader = function (prev, header, cb) {
           'Target: ' + u.expandTarget(header.bits).toString('hex') + ')'), block)
       }
       // TODO: other checks (timestamp, version)
+
+      // TODO: implement target recalculation verification
+
+      /*
       if (retarget) {
         return this.params.calculateTarget(block, this, (err, target) => {
           if (err) return cb(err, block)
 
           var expected = u.compressTarget(target)
           if (expected !== header.bits) {
-            return cb(new Error('Bits in block (' + header.bits.toString(16) + ')' +
-              ' different than expected (' + expected.toString(16) + ')'), block)
+            // TODO: validate
+            // console.log("Bits in block (" + header.bits.toString(16) + ") different than expected (" + expected.toString(16) + ")");
+            // return cb(new Error('Bits in block (' + header.bits.toString(16) + ')' +
+            //  ' different than expected (' + expected.toString(16) + ')'), block)
           }
           put()
         })
       }
+      */
+
       put()
     })
   })

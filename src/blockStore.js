@@ -1,6 +1,7 @@
 var EventEmitter = require('events').EventEmitter
 var u = require('bitcoin-util')
-var DefaultBlock = require('bitcoinjs-lib').Block
+var DefaultBlock = require('bitcore-lib-dash').BlockHeader
+// var DefaultBlock = require('bitcore-lib').BlockHeader
 var inherits = require('inherits')
 var reverse = require('buffer-reverse')
 var struct = require('varstruct')

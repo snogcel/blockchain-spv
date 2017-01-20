@@ -1,16 +1,22 @@
 var test = require('tape')
-var bitcoinjs = require('bitcoinjs-lib')
+var bitcoinjs = require('bitcore-lib-dash')
+var Block = require('bitcore-lib-dash').BlockHeader
 var memdown = require('memdown')
 var levelup = require('levelup')
 var u = require('bitcoin-util')
 var BlockStore = require('../lib/blockStore.js')
+
+Block.prototype.getId = function() {
+  var id = new Buffer(this._getHash(), 'hex').reverse()
+  return id.toString('hex')
+}
 
 function createBlock () {
   var header = blockFromObject({
     version: 1,
     prevHash: u.toHash('0000000000000000000000000000000000000000000000000000000000000000'),
     merkleRoot: u.toHash('4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b'),
-    timestamp: Math.floor(Date.now() / 1000),
+    time: Math.floor(Date.now() / 1000),
     bits: 0x1d00ffff,
     nonce: Math.floor(Math.random() * 0xffffff)
   })
@@ -18,9 +24,11 @@ function createBlock () {
 }
 
 function blockFromObject (obj) {
-  var block = new bitcoinjs.Block()
-  for (var k in obj) block[k] = obj[k]
+  /*
+  var block = new bitcoinjs.BlockHeader(obj)
   return block
+  */
+  return new Block(obj);
 }
 
 test('try to create blockstore with no db', function (t) {

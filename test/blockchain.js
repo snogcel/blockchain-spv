@@ -1,4 +1,6 @@
 var test = require('tape')
+var bitcoinjs = require('bitcore-lib-dash')
+var Block = require('bitcore-lib-dash').BlockHeader
 var u = require('bitcoin-util')
 var levelup = require('levelup')
 var memdown = require('memdown')
@@ -16,6 +18,19 @@ function endStore (store, t) {
     t.error(err)
     deleteStore(store, t.end)
   })
+}
+
+Block.prototype.getId = function () {
+    var id = new Buffer(this._getHash(), 'hex').reverse();
+    return id.toString('hex');
+};
+
+Block.prototype.getHash = function () {
+    return this._getHash();
+};
+
+function blockFromObject(obj) {
+    return new Block(obj);
 }
 
 test('create blockchain instance', function (t) {
@@ -163,7 +178,7 @@ test('blockchain paths', function (t) {
       version: 1,
       prevHash: u.nullHash,
       merkleRoot: u.nullHash,
-      timestamp: Math.floor(Date.now() / 1000),
+      time: Math.floor(Date.now() / 1000),
       bits: u.compressTarget(utils.maxTarget),
       nonce: 0
     }
@@ -526,28 +541,28 @@ test('blockchain queries', function (t) {
   t.test('get block at time', function (t) {
     t.plan(16)
 
-    chain.getBlockAtTime(genesis.timestamp + 9, function (err, block) {
+    chain.getBlockAtTime(genesis.time + 9, function (err, block) {
       t.error(err)
       t.ok(block)
       t.equal(block.height, 10)
       t.equal(block.header.getId(), headers[9].getId())
     })
 
-    chain.getBlockAtTime(genesis.timestamp + 89, function (err, block) {
+    chain.getBlockAtTime(genesis.time + 89, function (err, block) {
       t.error(err)
       t.ok(block)
       t.equal(block.height, 90)
       t.equal(block.header.getId(), headers[89].getId())
     })
 
-    chain.getBlockAtTime(genesis.timestamp + 200, function (err, block) {
+    chain.getBlockAtTime(genesis.time + 200, function (err, block) {
       t.error(err)
       t.ok(block)
       t.equal(block.height, 100)
       t.equal(block.header.getId(), headers[99].getId())
     })
 
-    chain.getBlockAtTime(genesis.timestamp - 10, function (err, block) {
+    chain.getBlockAtTime(genesis.time - 10, function (err, block) {
       t.error(err)
       t.ok(block)
       t.equal(block.height, 0)
