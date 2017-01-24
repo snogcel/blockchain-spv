@@ -1,6 +1,6 @@
 var EventEmitter = require('events').EventEmitter
 var u = require('bitcoin-util')
-var DefaultBlock = require('bitcoinjs-lib').Block
+var DefaultBlock = require('bitcore-lib-dash').BlockHeader
 var inherits = require('inherits')
 var reverse = require('buffer-reverse')
 var struct = require('varstruct')
@@ -98,16 +98,16 @@ BlockStore.prototype.put = function (block, opts, cb) {
     header: block.header.toBuffer(),
     next: u.nullHash
   })
-  var hash = block.header.getHash()
+  var hash = block.header._getHash()
   tx.put(encodeKey(hash), blockEncoded, this.dbOpts)
 
   if (opts.link && opts.prev) {
     var prevEncoded = storedBlock.encode({
       height: opts.prev.height,
       header: opts.prev.header.toBuffer(),
-      next: block.header.getHash()
+      next: block.header._getHash()
     })
-    tx.put(encodeKey(opts.prev.header.getHash()),
+    tx.put(encodeKey(opts.prev.header._getHash()),
       prevEncoded, this.dbOpts)
   }
 

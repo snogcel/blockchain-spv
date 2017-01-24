@@ -1,13 +1,12 @@
 var EventEmitter = require('events').EventEmitter
 var async = require('async')
 var u = require('bitcoin-util')
-var DefaultBlock = require('bitcoinjs-lib').Block
+var DefaultBlock = require('bitcore-lib-dash').BlockHeader
 var from = require('from2').obj
 var to = require('flush-write-stream').obj
 var inherits = require('inherits')
 var BlockStore = require('./blockStore.js')
 var HeaderStream = require('./headerStream.js')
-var assign = require('object-assign')
 if (!setImmediate) require('setimmediate')
 
 var storeClosedError = new Error('Store is closed')
@@ -31,13 +30,13 @@ var Blockchain = module.exports = function (params, db, opts) {
   var Block = params.Block || DefaultBlock
 
   function blockFromObject (obj) {
-    return assign(new Block(), obj)
+    return new Block(obj)
   }
 
   var genesisHeader = blockFromObject(params.genesisHeader)
   this.genesis = this.tip = {
     height: 0,
-    hash: genesisHeader.getHash(),
+    hash: genesisHeader._getHash(),
     header: genesisHeader
   }
 
@@ -47,7 +46,7 @@ var Blockchain = module.exports = function (params, db, opts) {
       height: lastCheckpoint.height,
       header: blockFromObject(lastCheckpoint.header)
     }
-    this.checkpoint.hash = this.checkpoint.header.getHash()
+    this.checkpoint.hash = this.checkpoint.header._getHash()
     this.tip = this.checkpoint
   }
 
@@ -194,8 +193,8 @@ Blockchain.prototype.getBlockAtTime = function (time, cb) {
   var output = this.tip
   var traverse = (err, block) => {
     if (err) return cb(err)
-    if (block.header.timestamp <= time) return cb(null, output)
-    if (block.header.timestamp >= time) output = block
+    if (block.header.time <= time) return cb(null, output)
+    if (block.header.time >= time) output = block
     if (block.height === 0) return cb(null, output)
     this.getBlock(block.header.prevHash, traverse)
   }
@@ -362,7 +361,7 @@ Blockchain.prototype._addHeader = function (prev, header, cb) {
   var height = prev.height + 1
   var block = {
     height: height,
-    hash: header.getHash(),
+    hash: header._getHash(),
     header: header
   }
   // if prev already has a "next" pointer, then this is a fork, so we
@@ -389,16 +388,26 @@ Blockchain.prototype._addHeader = function (prev, header, cb) {
   this.params.shouldRetarget(block, (err, retarget) => {
     if (err) return cb(err)
     if (!retarget && header.bits !== prev.header.bits) {
-      return cb(new Error('Unexpected difficulty change at height ' + height), block)
+
+      // TODO
+      // return cb(new Error('Unexpected difficulty change at height ' + height), block)
+
     }
     this.validProof(header, (err, validProof) => {
       if (err) return cb(err)
       if (!validProof) {
+
+        // TODO
+        /*
         return cb(new Error('Mining hash is above target. ' +
           'Hash: ' + header.getId() + ', ' +
           'Target: ' + u.expandTarget(header.bits).toString('hex') + ')'), block)
+        */
+
       }
+
       // TODO: other checks (timestamp, version)
+      /*
       if (retarget) {
         return this.params.calculateTarget(block, this, (err, target) => {
           if (err) return cb(err, block)
@@ -411,6 +420,8 @@ Blockchain.prototype._addHeader = function (prev, header, cb) {
           put()
         })
       }
+      */
+
       put()
     })
   })
@@ -429,7 +440,7 @@ Blockchain.prototype.maxTarget = function () {
 }
 
 Blockchain.prototype.estimatedChainHeight = function () {
-  var elapsed = (Date.now() / 1000) - this.tip.header.timestamp
+  var elapsed = (Date.now() / 1000) - this.tip.header.time
   var blocks = Math.round(elapsed / this.params.targetSpacing)
   return this.tip.height + blocks
 }

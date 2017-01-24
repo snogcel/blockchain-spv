@@ -103,7 +103,7 @@ test('simple streaming', function (t) {
 
 test('stream options', function (t) {
   t.test('from', function (t) {
-    var hs = chain.createReadStream({ from: headers[3].getHash() })
+    var hs = chain.createReadStream({ from: headers[3]._getHash() })
     var i = 5
     hs.on('data', function (block) {
       t.equal(block.height, i, 'correct height')
@@ -163,7 +163,7 @@ test('reorgs', function (t) {
       { height: 11, header: headers2[2], add: true },
       { height: 12, header: headers2[3], add: true }
     ]
-    var hs = chain.createReadStream({ from: headers[9].getHash() })
+    var hs = chain.createReadStream({ from: headers[9]._getHash() })
     hs.on('data', function (block1) {
       var block2 = expected.shift()
       t.equal(block1.height, block2.height, 'correct height')

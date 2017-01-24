@@ -1,24 +1,24 @@
-# blockchain-spv
+# blockchain-spv-dash
 
-[![npm version](https://img.shields.io/npm/v/blockchain-spv.svg)](https://www.npmjs.com/package/blockchain-spv)
-[![Build Status](https://travis-ci.org/mappum/blockchain-spv.svg?branch=master)](https://travis-ci.org/mappum/blockchain-spv)
-[![Dependency Status](https://david-dm.org/mappum/blockchain-spv.svg)](https://david-dm.org/mappum/blockchain-spv)
+[![npm version](https://img.shields.io/npm/v/blockchain-spv-dash.svg)](https://www.npmjs.com/package/blockchain-spv-dash)
+[![Build Status](https://travis-ci.org/dashpay/blockchain-spv-dash.svg?branch=master)](https://travis-ci.org/dashpay/blockchain-spv-dash)
+[![Dependency Status](https://david-dm.org/dashpay/blockchain-spv-dash.svg)](https://david-dm.org/dashpay/blockchain-spv-dash)
 
 **Stores blockchain headers and verifies transactions with SPV**
 
 ## Usage
 
-`npm install blockchain-spv`
+`npm install blockchain-spv-dash`
 
 ```js
-// import blockchain parameters for Bitcoin
-var params = require('webcoin-bitcoin').blockchain
+// import blockchain parameters for Dash
+var params = require('webcoin-dash').blockchain
 
 // create a LevelUp database where the block data should be stored
-var db = levelup('bitcoin.chain', { db: require('memdown') })
+var db = levelup('dash.chain', { db: require('memdown') })
 
 // create blockchain
-var Blockchain = require('blockchain-spv')
+var Blockchain = require('blockchain-spv-dash')
 var chain = new Blockchain(params, db)
 
 // wait for the blockchain to be ready
@@ -27,14 +27,14 @@ chain.on('ready', function () {
 }
 ```
 
-`Blockchain` stores and verifies block headers, and does SPV (lite client) verification. It is compatible with Bitcoin and Bitcoin-derived blockchains.
+`Blockchain` stores and verifies block headers, and does SPV (lite client) verification. It is compatible with Dash and Bitcoin-derived blockchains.
 
 ----
 #### `new Blockchain(params, db)`
 
 Creates an SPV `Blockchain` which stores and verifies block headers.
 
-`params` should be the blockchain parameters for the blockchain you wish to use. Parameters for Bitcoin are available at `require('webcoin-bitcoin').blockchain`. For more info about params you can use, see the [Parameters](#parameters) section.
+`params` should be the blockchain parameters for the blockchain you wish to use. Parameters for Dash are available at `require('webcoin-dash').blockchain`. For more info about params you can use, see the [Parameters](#parameters) section.
 
 `db` should be a [`LevelUp`](https://github.com/Level/levelup) instance where block data will be stored. The db should not be shared with another Blockchain (if you need to, use [`level-sublevel`](https://github.com/dominictarr/level-sublevel) to create a sub-section of your db).
 
@@ -73,9 +73,9 @@ Gets a block in the chain with height `height`. The callback is called with `cb(
 Note that this requires the blockchain to be traversed (from the tip or genesis block, whichever is closest), so it runs in `O(N/2)` time.
 
 ----
-#### `chain.getBlockAtTime(timestamp, callback)`
+#### `chain.getBlockAtTime(time, callback)`
 
-Gets the highest block with a timestamp that comes before or on `timestamp`. `timestamp` should be in [Unix time](https://en.wikipedia.org/wiki/Unix_time) measured in seconds (not milliseconds as returned by `Date.now()`). The callback is called with `cb(err, block)`.
+Gets the highest block with a time that comes before or on `time`. `time` should be in [Unix time](https://en.wikipedia.org/wiki/Unix_time) measured in seconds (not milliseconds as returned by `Date.now()`). The callback is called with `cb(err, block)`.
 
 Note that this requires the blockchain to be traversed (from the tip or genesis block, whichever is closest), so it runs in `O(N)` time.
 
@@ -151,7 +151,7 @@ Parameters specify blockchain rules and constants for different cryptocurrencies
     version: Number,
     prevHash: Buffer,
     merkleRoot: Buffer,
-    timestamp: Number,
+    time: Number,
     bits: Number,
     nonce: Number
   },
@@ -183,7 +183,7 @@ Parameters specify blockchain rules and constants for different cryptocurrencies
         version: Number,
         prevHash: Buffer,
         merkleRoot: Buffer,
-        timestamp: Number,
+        time: Number,
         bits: Number,
         nonce: Number
       }
