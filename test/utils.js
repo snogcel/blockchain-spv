@@ -1,8 +1,8 @@
 var bitcore = require('bitcore-lib-dash')
-var u = require('bitcoin-util')
+var u = require('dash-util')
 var reverse = require('buffer-reverse')
 var assign = require('object-assign')
-var params = require('webcoin-bitcoin').blockchain
+var params = require('webcoin-dash').blockchain
 
 exports.blockFromObject = function (obj) {
   var block = new bitcore.BlockHeader(obj)

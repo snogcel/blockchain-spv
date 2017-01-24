@@ -1,6 +1,6 @@
 var EventEmitter = require('events').EventEmitter
 var async = require('async')
-var u = require('bitcoin-util')
+var u = require('dash-util')
 var DefaultBlock = require('bitcore-lib-dash').BlockHeader
 var from = require('from2').obj
 var to = require('flush-write-stream').obj
