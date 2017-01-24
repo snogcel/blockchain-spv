@@ -1,11 +1,12 @@
-var bitcoinjs = require('bitcoinjs-lib')
+var bitcore = require('bitcore-lib-dash')
 var u = require('bitcoin-util')
 var reverse = require('buffer-reverse')
 var assign = require('object-assign')
 var params = require('webcoin-bitcoin').blockchain
 
 exports.blockFromObject = function (obj) {
-  return assign(new bitcoinjs.Block(), obj)
+  var block = new bitcore.BlockHeader(obj)
+  return block
 }
 
 exports.createBlock = function (prev, nonce, bits, validProof) {
@@ -15,9 +16,9 @@ exports.createBlock = function (prev, nonce, bits, validProof) {
   do {
     header = exports.blockFromObject({
       version: 1,
-      prevHash: prev ? prev.getHash() : u.nullHash,
+      prevHash: prev ? prev._getHash() : u.nullHash,
       merkleRoot: u.nullHash,
-      timestamp: prev ? (prev.timestamp + 1) : Math.floor(Date.now() / 1000),
+      time: prev ? (prev.time + 1) : Math.floor(Date.now() / 1000),
       bits: bits || (prev ? prev.bits : u.compressTarget(exports.maxTarget)),
       nonce: i++
     })
@@ -29,7 +30,7 @@ exports.maxTarget = new Buffer('7fffffffffffffffffffffffffffffffffffffffffffffff
 
 exports.validProofOfWork = function (header) {
   var target = u.expandTarget(header.bits)
-  var hash = reverse(header.getHash())
+  var hash = reverse(header._getHash())
   return hash.compare(target) !== 1
 }
 
@@ -40,9 +41,9 @@ exports.createBlock = function (prev, nonce, bits, validProof) {
   do {
     header = exports.blockFromObject({
       version: 1,
-      prevHash: prev ? prev.getHash() : u.nullHash,
+      prevHash: prev ? prev._getHash() : u.nullHash,
       merkleRoot: u.nullHash,
-      timestamp: prev ? (prev.timestamp + 1) : Math.floor(Date.now() / 1000),
+      time: prev ? (prev.time + 1) : Math.floor(Date.now() / 1000),
       bits: bits || (prev ? prev.bits : u.compressTarget(exports.maxTarget)),
       nonce: i++
     })
@@ -55,7 +56,7 @@ var defaultTestParams = {
     version: 1,
     prevHash: u.nullHash,
     merkleRoot: u.nullHash,
-    timestamp: Math.floor(Date.now() / 1000),
+    time: Math.floor(Date.now() / 1000),
     bits: u.compressTarget(exports.maxTarget),
     nonce: 0
   },
