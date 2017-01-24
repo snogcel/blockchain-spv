@@ -11,11 +11,11 @@
 `npm install blockchain-spv`
 
 ```js
-// import blockchain parameters for Bitcoin
-var params = require('webcoin-bitcoin').blockchain
+// import blockchain parameters for Dash
+var params = require('webcoin-dash').blockchain
 
 // create a LevelUp database where the block data should be stored
-var db = levelup('bitcoin.chain', { db: require('memdown') })
+var db = levelup('dash.chain', { db: require('memdown') })
 
 // create blockchain
 var Blockchain = require('blockchain-spv')
@@ -27,14 +27,14 @@ chain.on('ready', function () {
 }
 ```
 
-`Blockchain` stores and verifies block headers, and does SPV (lite client) verification. It is compatible with Bitcoin and Bitcoin-derived blockchains.
+`Blockchain` stores and verifies block headers, and does SPV (lite client) verification. It is compatible with Dash and Bitcoin-derived blockchains.
 
 ----
 #### `new Blockchain(params, db)`
 
 Creates an SPV `Blockchain` which stores and verifies block headers.
 
-`params` should be the blockchain parameters for the blockchain you wish to use. Parameters for Bitcoin are available at `require('webcoin-bitcoin').blockchain`. For more info about params you can use, see the [Parameters](#parameters) section.
+`params` should be the blockchain parameters for the blockchain you wish to use. Parameters for Dash are available at `require('webcoin-dash').blockchain`. For more info about params you can use, see the [Parameters](#parameters) section.
 
 `db` should be a [`LevelUp`](https://github.com/Level/levelup) instance where block data will be stored. The db should not be shared with another Blockchain (if you need to, use [`level-sublevel`](https://github.com/dominictarr/level-sublevel) to create a sub-section of your db).
 
