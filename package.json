@@ -21,7 +21,7 @@
   "license": "MIT",
   "dependencies": {
     "async": "^1.5.2",
-    "bitcoin-util": "^2.0.0",
+    "dash-util": "latest",
     "bitcore-lib-dash": "^0.13.19",
     "buffer-reverse": "^1.0.1",
     "flush-write-stream": "^1.0.0",
@@ -44,6 +44,7 @@
     "standard": "^7.0.0",
     "tape": "^4.4.0",
     "webcoin-bitcoin": "^3.0.0",
+    "webcoin-dash": "latest",
     "zuul": "^3.10.1",
     "zuul-ngrok": "^4.0.0"
   },

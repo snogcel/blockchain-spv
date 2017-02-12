@@ -1,8 +1,8 @@
 var test = require('tape')
-var u = require('bitcoin-util')
+var u = require('dash-util')
 var levelup = require('levelup')
 var memdown = require('memdown')
-var params = require('webcoin-bitcoin').blockchain
+var params = require('webcoin-dash').blockchain
 var Blockchain = require('../lib/blockchain.js')
 var utils = require('./utils.js')
 
