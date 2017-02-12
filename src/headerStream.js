@@ -2,7 +2,7 @@
 
 var Readable = require('stream').Readable
 var inherits = require('inherits')
-var u = require('bitcoin-util')
+var u = require('dash-util')
 require('setimmediate')
 
 function HeaderStream (chain, opts) {

@@ -2,7 +2,7 @@ var test = require('tape')
 var Block = require('bitcore-lib-dash').BlockHeader
 var memdown = require('memdown')
 var levelup = require('levelup')
-var u = require('bitcoin-util')
+var u = require('dash-util')
 var BlockStore = require('../lib/blockStore.js')
 
 function createBlock () {
@@ -21,7 +21,7 @@ function blockFromObject (obj) {
   return new Block(obj)
 }
 
-Block.prototype.getId = function() {
+Block.prototype.getId = function () {
   var id = new Buffer(this._getHash(), 'hex').reverse()
   return id.toString('hex')
 }
